@@ -6,6 +6,7 @@ use std::env;
 /// Binary that executes a user-defined script.
 /// You likely want to write your own script and then invoke it using this binary.
 /// Check the script directory for examples of scripts.
+/// TODO: Write a better main(), this will get hard to maintain as the number of scripts increases
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     
