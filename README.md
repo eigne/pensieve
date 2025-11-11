@@ -12,3 +12,54 @@ Pensieve does not require the exact position of the snapshot within the binlog. 
 You must give Pensieve a rough estimate of the snapshot's timestamp. Pensieve uses transactions within a several hour window around your estimate to generate a new, normalised snapshot, at a precisely known position within the binlog.
 
 Pensieve is still in development and has only been tested on a small scale.
+
+## Building
+Clone the repo and run:
+
+```
+cargo build
+```
+
+or, directly:
+
+```
+cargo run --release
+```
+
+## An example
+Pensieve currently includes one sample table in `db_data/books`. Both its snapshot (parquet) and binlogs are included. The binlogs have transactions for other tables too, but Pensieve ignores these automatically.
+
+Several values of `price` have been deleted from this table. 
+
+Additionally, the snapshot only contains the first five books' worth of data. The remaining seven books were INSERTed after the snapshot was taken.
+
+The binlog contains all transactions related to this table - inserting twelve books, followed by deleting the prices of several books.
+
+We can use the included [LastNonNullScript](https://github.com/eigne/pensieve/blob/main/src/script/last_non_null.rs) to restore the lost prices.
+
+This script gets the last non-null value of a specified column for all rows in a table.
+
+Try running:
+
+```
+ cargo run --release --bin script last-non-null --table books --column price --output results.csv --timestamp '251111 01:33:00' --window 1
+```
+
+and check the output of results.csv:
+
+```
+id,last_non_null_value
+1,10
+2,20
+3,30
+4,40
+5,50
+6,60
+7,70
+8,80
+9,90
+10,100
+11,110
+12,120
+```
+
