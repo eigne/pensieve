@@ -35,6 +35,23 @@ Additionally, the snapshot only contains the first five books' worth of data. Th
 
 The binlog contains all transactions related to this table - inserting twelve books, followed by deleting the prices of several books.
 
+The present state of the table looks like this:
+```
+id | price
+1  | null
+2  | 20
+3  | 30
+4  | 40
+5  | 50
+6  | null
+7  | null
+8  | null
+9  | null
+10 | null
+11 | null
+12 | null
+```
+
 We can use the included [LastNonNullScript](https://github.com/eigne/pensieve/blob/main/src/script/last_non_null.rs) to restore the lost prices.
 
 This script gets the last non-null value of a specified column for all rows in a table.
