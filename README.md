@@ -56,7 +56,7 @@ id | price
 
 We can use the included [LastNonNullScript](https://github.com/eigne/pensieve/blob/main/src/script/last_non_null.rs) to restore the lost prices.
 
-This script gets the chronologically last non-null value of a specified column for all rows in a table, over the entire span of the binlog.
+This script gets the chronological last non-null value of a specified column for all rows in a table, over the entire span of the binlog.
 
 Try running:
 
