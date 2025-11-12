@@ -11,6 +11,8 @@ Pensieve does not require the exact position of the snapshot within the binlog. 
 
 You must give Pensieve a rough estimate of the snapshot's timestamp. Pensieve uses transactions within a several hour window around your estimate to generate a new, normalised snapshot, at a precisely known position within the binlog.
 
+(It is possible to normalise snapshots with the entire binlog, removing the need to specify a rough timestamp. However, this is slow, and is thus not recommended.)
+
 Pensieve is still in development and has only been tested on a small scale.
 
 ## Building
