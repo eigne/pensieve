@@ -1,6 +1,6 @@
-use pensieve_rs::pensieve::Pensieve;
-use pensieve_rs::script::{PensieveScript, write_csv};
-use pensieve_rs::script::last_non_null::{run_last_non_null, LastNonNullScript};
+use pensieve_rs_lib::pensieve::Pensieve;
+use pensieve_rs_lib::script::{PensieveScript, write_csv};
+use pensieve_rs_lib::script::last_non_null::{run_last_non_null, LastNonNullScript};
 use std::env;
 
 /// Binary that executes a user-defined script.

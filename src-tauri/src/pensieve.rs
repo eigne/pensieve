@@ -1,5 +1,5 @@
 use duckdb::Connection;
-use crate::parser::text_binlog_parser::TextBinlogParser;
+use crate::parser::sql_binlog_parser::BinaryBinlogParser;
 use crate::snapshot_normaliser::timestamp_normaliser::TimestampNormaliser;
 use crate::snapshot_manager::SnapshotManager;
 use crate::loader::parquet_loader;
@@ -18,9 +18,13 @@ use std::fs;
 /// You must place them following this hierarchy:
 /// db_data
 ///  L my_table
-///    L binlog.sql
+///    L binlog.000001
+///    L binlog.000002
 ///    L snapshot-part-01.parquet
 ///    L snapshot-part-02.parquet
+///
+/// Binlog files can be binary MySQL binlog files (e.g., binlog.000001, mysql-bin.000001).
+/// Multiple binlog files are supported and will be parsed in alphanumeric order.
 ///
 /// Pensieve uses this hierarchy to infer the name of your table. (Pensieve currently only supports one table).
 pub struct Pensieve {
@@ -62,16 +66,20 @@ impl Pensieve {
         let parquet_files = Self::discover_parquet_files(&table_path)?;
         println!("Found {} parquet file(s)", parquet_files.len());
         
-        let binlog_file = Self::discover_binlog_file(&table_path)?;
-        println!("Found binlog file: {}", binlog_file);
+        let binlog_files = Self::discover_binlog_files(&table_path)?;
+        println!("Found {} binlog file(s):", binlog_files.len());
+        for f in &binlog_files {
+            println!("  - {}", f);
+        }
         
         println!("\n=== Loading Parquet Files ===");
         let parquet_refs: Vec<&str> = parquet_files.iter().map(|s| s.as_str()).collect();
         let conn = parquet_loader::load_table_from_parquet_files(&table_name, &parquet_refs)?;
         
-        println!("\n=== Parsing Binlog ===");
-        let mut parser = TextBinlogParser::new(conn);
-        let operations = parser.parse_file(&binlog_file)?;
+        println!("\n=== Parsing Binlog Files ===");
+        let mut parser = BinaryBinlogParser::new(conn);
+        let binlog_refs: Vec<&str> = binlog_files.iter().map(|s| s.as_str()).collect();
+        let operations = parser.parse_files(&binlog_refs)?;
         
         println!("Parsed {} operations from binlog", operations.len());
         println!("First 5 operations:");
@@ -152,24 +160,66 @@ impl Pensieve {
         Ok(parquet_files)
     }
     
-    /// Discovers SQL binlog file in a table directory
-    fn discover_binlog_file(table_path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
+    /// Discovers binary binlog files in a table directory.
+    /// Looks for files matching patterns like:
+    /// - binlog.000001, binlog.000002, ...
+    /// - mysql-bin.000001, mysql-bin.000002, ...
+    /// - Any file with a numeric extension (e.g., .000001)
+    /// 
+    /// Files are returned sorted alphanumerically.
+    fn discover_binlog_files(table_path: &PathBuf) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let mut binlog_files = Vec::new();
+        
         for entry in fs::read_dir(table_path)? {
             let entry = entry?;
             let path = entry.path();
             
             if path.is_file() {
-                if let Some(ext) = path.extension() {
-                    if ext == "sql" {
+                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                    // Match binlog files by common naming patterns:
+                    // - binlog.NNNNNN (e.g., binlog.000001)
+                    // - mysql-bin.NNNNNN (e.g., mysql-bin.000001)
+                    // - *-bin-changelog.NNNNNN (AWS RDS pattern)
+                    let is_binlog = filename.starts_with("binlog.")
+                        || filename.starts_with("mysql-bin.")
+                        || filename.contains("-bin-changelog.")
+                        || Self::has_numeric_extension(filename);
+                    
+                    // Exclude .parquet and other known non-binlog files
+                    let is_excluded = filename.ends_with(".parquet")
+                        || filename.ends_with(".sql")
+                        || filename.ends_with(".txt")
+                        || filename.ends_with(".log")
+                        || filename.ends_with(".json")
+                        || filename.ends_with(".index");
+                    
+                    if is_binlog && !is_excluded {
                         if let Some(path_str) = path.to_str() {
-                            return Ok(path_str.to_string());
+                            binlog_files.push(path_str.to_string());
                         }
                     }
                 }
             }
         }
         
-        Err(format!("No SQL binlog file found in {:?}", table_path).into())
+        if binlog_files.is_empty() {
+            return Err(format!("No binlog files found in {:?}", table_path).into());
+        }
+        
+        // Sort alphanumerically (handles binlog.000027, binlog.000028, etc.)
+        binlog_files.sort();
+        Ok(binlog_files)
+    }
+    
+    /// Check if a filename has a numeric extension (e.g., .000001)
+    fn has_numeric_extension(filename: &str) -> bool {
+        if let Some(dot_pos) = filename.rfind('.') {
+            let ext = &filename[dot_pos + 1..];
+            // Check if extension is all digits and at least 1 character
+            !ext.is_empty() && ext.chars().all(|c| c.is_ascii_digit())
+        } else {
+            false
+        }
     }
     
     pub fn get_snapshot_position(&self) -> usize {
@@ -198,3 +248,4 @@ impl Pensieve {
         self.manager
     }
 }
+
