@@ -28,7 +28,7 @@ or, directly:
 cargo run --release
 ```
 
-## An example
+## An example (outdated)
 Pensieve currently includes one sample table in `db_data/books`. Both its snapshot (parquet) and binlogs are included. The binlogs have transactions for other tables too, but Pensieve ignores these automatically.
 
 Several values of `price` have been deleted from this table. 
