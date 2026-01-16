@@ -54,7 +54,7 @@ id | price
 12 | null
 ```
 
-We can use the included [LastNonNullScript](https://github.com/eigne/pensieve/blob/main/src/script/last_non_null.rs) to restore the lost prices.
+We can use the included [LastNonNullScript](https://github.com/eigne/pensieve/blob/main/src-tauri/src/script/last_non_null.rs) to restore the lost prices.
 
 This script gets the chronological last non-null value of a specified column for all rows in a table, over the entire span of the binlog.
 
